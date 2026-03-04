@@ -6,130 +6,113 @@
 <title>ESP32 Web Serial Terminal</title>
 
 <style>
-
-body{
+body {
 font-family:'Courier New', Courier, monospace;
-background: radial-gradient(circle at top,#0f2027,#203a43,#2c5364);
+background-color:#1e1e1e;
 color:#fff;
 margin:0;
 padding:0;
 text-align:center;
 }
 
-/* Title */
-h1{
-color:#00ffc3;
+h1 {
+color:#4CAF50;
 margin:10px 0;
-text-shadow:0 0 10px #00ffc3;
 }
 
-/* Main container */
-.container{
+.container {
 max-width:800px;
 margin:20px auto;
 padding:20px;
-background:linear-gradient(145deg,#1b1b1b,#111);
-border-radius:10px;
-box-shadow:0 0 20px rgba(0,255,200,0.4);
+background-color:#222;
+border-radius:8px;
+box-shadow:0 2px 5px rgba(0,0,0,0.5);
 position:relative;
 }
 
-/* Terminal */
-.terminal{
+.terminal {
 width:100%;
 height:300px;
-background:#000;
-color:#00ff90;
+background-color:#000;
+color:#0f0;
 padding:10px;
-border-radius:6px;
+border-radius:5px;
 overflow-y:auto;
 text-align:left;
 font-size:14px;
 line-height:1.5;
-border:1px solid #00ffc3;
+border:1px solid #4CAF50;
 white-space:pre-wrap;
-box-shadow:inset 0 0 10px rgba(0,255,120,0.6);
 }
 
-/* Command input */
-.command-input{
+.command-container {
+position:relative;
+width:100%;
+}
+
+.command-input {
 width:100%;
 padding:10px;
-border-radius:6px;
-border:1px solid #00ffc3;
-background:#111;
+border-radius:5px;
+border:1px solid #4CAF50;
+background-color:#333;
 color:#fff;
 font-size:16px;
 margin-top:10px;
-outline:none;
 }
 
-.command-input:focus{
-box-shadow:0 0 10px #00ffc3;
-}
-
-/* Suggestions */
-.suggestions{
+.suggestions {
 position:absolute;
 width:100%;
-background:#111;
-border:1px solid #00ffc3;
+background-color:#333;
+border:1px solid #4CAF50;
 color:white;
 max-height:150px;
 overflow-y:auto;
-border-radius:6px;
+border-radius:5px;
 display:none;
 text-align:left;
 }
 
-.suggestion{
+.suggestion {
 padding:10px;
 cursor:pointer;
 }
 
-.suggestion:hover{
-background:#00ffc3;
-color:black;
+.suggestion:hover {
+background-color:#4CAF50;
 }
 
-/* Buttons */
-button{
-background:linear-gradient(90deg,#00ffc3,#00a8ff);
-color:black;
-padding:10px 15px;
+button {
+background-color:#4CAF50;
+color:white;
+padding:10px;
 font-size:16px;
-border-radius:6px;
+border-radius:5px;
 border:none;
 cursor:pointer;
 margin-top:10px;
-font-weight:bold;
-transition:0.3s;
 }
 
-button:hover{
-transform:scale(1.05);
-box-shadow:0 0 10px #00ffc3;
+button:hover {
+background-color:#45a049;
 }
 
-/* Made By */
-.made-by{
-color:#ff006a;
+.made-by {
+color:red;
 font-size:18px;
 font-weight:bold;
 margin-top:10px;
-text-shadow:0 0 8px #ff006a;
 }
 
-/* Credit */
-.credit{
-background:linear-gradient(90deg,#ff00cc,#3333ff,#00ffc3);
+.credit {
+background:linear-gradient(90deg, rgba(255,0,150,1) 0%, rgba(0,204,255,1) 100%);
 -webkit-background-clip:text;
 color:transparent;
 font-size:18px;
 font-weight:bold;
 margin-top:5px;
 }
-
 </style>
 </head>
 
@@ -160,8 +143,11 @@ margin-top:5px;
 let port;
 let writer;
 let reader;
-let decoder = new TextDecoder();
-let encoder = new TextEncoder();
+
+const decoder = new TextDecoder();
+const encoder = new TextEncoder();
+
+const terminal = document.getElementById("terminal");
 
 const commandList = [
 "help","scanap","stopscan","list -a","save -a 0",
@@ -169,13 +155,15 @@ const commandList = [
 "blespam -t all","sniffraw","select -a",
 "evilportal -c start -w apple.html",
 "evilportal -c start -w Better_Google_Mobile.html",
-"ssid -a -n Linuxndroid","reboot","select -s","ls /",
+"ssid -a -n Linuxndroid","reboot","select -s","ls /"
 ];
 
 async function connectSerial(){
+
 try{
 
 port = await navigator.serial.requestPort();
+
 await port.open({ baudRate:115200 });
 
 writer = port.writable.getWriter();
@@ -186,15 +174,18 @@ updateTerminal("Connected to ESP32\n");
 listenToSerial();
 
 }catch(error){
+
 alert("Connection failed: "+error.message);
+
 }
+
 }
 
 async function listenToSerial(){
 
 try{
 
-while(port.readable){
+while(true){
 
 const { value, done } = await reader.read();
 
@@ -202,31 +193,45 @@ if(done){
 break;
 }
 
+if(value){
+
 const text = decoder.decode(value);
 
 updateTerminal(text);
 
 }
 
+}
+
 }catch(error){
-console.error("Error reading serial data: ", error);
+
+console.error("Serial error:", error);
+
+updateTerminal("\n[Disconnected]\n");
+
 }
 
 }
 
 async function sendCommand(){
 
-const commandInput = document.getElementById("commandInput");
+if(!writer){
 
-const command = commandInput.value.trim();
+alert("Connect ESP32 first");
+
+return;
+
+}
+
+const commandInput=document.getElementById("commandInput");
+
+const command=commandInput.value.trim();
 
 if(!command) return;
 
-updateTerminal(`\n> ${command}`);
+updateTerminal("\n> "+command);
 
-const data = encoder.encode(command+"\n");
-
-await writer.write(data);
+await writer.write(encoder.encode(command+"\n"));
 
 commandInput.value="";
 
@@ -244,11 +249,9 @@ sendCommand();
 
 function updateTerminal(text){
 
-const terminal=document.getElementById("terminal");
+terminal.textContent += text;
 
-terminal.innerHTML+=text;
-
-terminal.scrollTop=terminal.scrollHeight;
+terminal.scrollTop = terminal.scrollHeight;
 
 }
 
@@ -261,22 +264,28 @@ const suggestionsBox=document.getElementById("suggestions");
 suggestionsBox.innerHTML="";
 
 if(!input){
+
 suggestionsBox.style.display="none";
+
 return;
+
 }
 
-const filteredCommands=commandList.filter(cmd=>cmd.startsWith(input));
+const filtered=commandList.filter(cmd=>cmd.startsWith(input));
 
-if(filteredCommands.length===0){
+if(filtered.length===0){
+
 suggestionsBox.style.display="none";
+
 return;
+
 }
 
-filteredCommands.forEach(command=>{
+filtered.forEach(command=>{
 
 const div=document.createElement("div");
 
-div.classList.add("suggestion");
+div.className="suggestion";
 
 div.textContent=command;
 
@@ -307,7 +316,9 @@ document.getElementById("suggestions").style.display="none";
 document.addEventListener("click",(event)=>{
 
 if(!event.target.classList.contains("suggestion")){
+
 hideSuggestions();
+
 }
 
 });
